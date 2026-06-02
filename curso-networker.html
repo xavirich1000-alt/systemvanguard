@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Código del Networker Moderno — Javier Morales</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --black: #0a0a0a; --dark: #0f0f0a; --gray: #161610; --gray2: #1e1e18;
+    --white: #f5f0e8; --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: #7a6330;
+    --text-muted: #555; --sidebar: 300px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; font-weight: 300; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* TOPBAR */
+  .topbar {
+    height: 58px; background: var(--dark); border-bottom: 1px solid rgba(201,168,76,0.15);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 1.5rem; position: sticky; top: 0; z-index: 200; flex-shrink: 0;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 1rem; }
+  .logo { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: var(--gold); text-transform: uppercase; }
+  .topbar-sep { width: 1px; height: 20px; background: rgba(201,168,76,0.2); }
+  .topbar-course { font-family: 'Playfair Display', serif; font-size: 0.85rem; font-weight: 700; opacity: 0.6; }
+  .hamburger { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
+  .hamburger span { display: block; width: 22px; height: 1px; background: var(--gold); transition: 0.3s; }
+  .topbar-progress { display: flex; align-items: center; gap: 0.75rem; }
+  .prog-label { font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase; }
+  .prog-track { width: 140px; height: 3px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .prog-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); border-radius: 3px; transition: width 0.6s ease; width: 0%; }
+  .prog-pct { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--gold); min-width: 30px; }
+
+  /* LAYOUT */
+  .layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 58px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar); background: var(--dark); border-right: 1px solid rgba(201,168,76,0.1);
+    display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: transform 0.3s ease;
+  }
+  .sidebar-head { padding: 1.25rem 1.25rem 1rem; border-bottom: 1px solid rgba(201,168,76,0.08); flex-shrink: 0; }
+  .sidebar-head-eyebrow { font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.18em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 0.4rem; }
+  .sidebar-head-title { font-family: 'Playfair Display', serif; font-size: 0.95rem; font-weight: 700; line-height: 1.3; }
+  .sidebar-head-title em { color: var(--gold); font-style: italic; }
+  .sidebar-scroll { flex: 1; overflow-y: auto; padding: 0.5rem 0 1rem; }
+  .sidebar-scroll::-webkit-scrollbar { width: 2px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+  /* PHASE LABELS */
+  .phase-label {
+    padding: 0.9rem 1.25rem 0.4rem;
+    font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.18em;
+    color: var(--gold); text-transform: uppercase; opacity: 0.7;
+  }
+
+  /* VIDEO ITEMS */
+  .vi {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.7rem 1.25rem; cursor: pointer;
+    border-left: 2px solid transparent; transition: all 0.2s;
+  }
+  .vi:hover { background: rgba(201,168,76,0.05); }
+  .vi.active { background: rgba(201,168,76,0.07); border-left-color: var(--gold); }
+  .vi-icon {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1px solid rgba(201,168,76,0.2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 0.55rem; transition: all 0.3s;
+  }
+  .vi.completed .vi-icon { background: var(--gold); border-color: var(--gold); color: var(--black); font-weight: 700; }
+  .vi.active:not(.completed) .vi-icon { border-color: var(--gold); color: var(--gold); }
+  .vi-text { flex: 1; min-width: 0; }
+  .vi-num { font-family: 'DM Mono', monospace; font-size: 0.52rem; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; }
+  .vi-name { font-size: 0.78rem; color: rgba(245,240,232,0.65); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vi.active .vi-name { color: var(--white); }
+  .vi-dur { font-family: 'DM Mono', monospace; font-size: 0.55rem; color: var(--text-muted); flex-shrink: 0; }
+
+  /* CONTENT */
+  .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .content::-webkit-scrollbar { width: 3px; }
+  .content::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+  /* PLAYER */
+  .player-wrap { background: #000; flex-shrink: 0; }
+  .player-ratio { position: relative; padding-bottom: 56.25%; }
+  .player-ratio iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+  .player-placeholder {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1.25rem;
+    background: linear-gradient(135deg, #0d0d07, #181810); cursor: pointer; transition: 0.3s;
+  }
+  .player-placeholder:hover { background: linear-gradient(135deg, #101009, #1c1c12); }
+  .play-circle {
+    width: 72px; height: 72px; border-radius: 50%;
+    border: 1px solid rgba(201,168,76,0.35);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(201,168,76,0.06); transition: all 0.3s;
+  }
+  .player-placeholder:hover .play-circle { border-color: var(--gold); background: rgba(201,168,76,0.12); transform: scale(1.06); }
+  .play-tri { width: 0; height: 0; border-style: solid; border-width: 13px 0 13px 24px; border-color: transparent transparent transparent var(--gold); margin-left: 5px; }
+  .play-hint { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase; }
+
+  /* LESSON */
+  .lesson { padding: 2rem 2.5rem; flex: 1; }
+  .lesson-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(201,168,76,0.1); margin-bottom: 1.5rem; }
+  .lesson-meta { flex: 1; }
+  .lesson-eyebrow { font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.15em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.5rem; }
+  .lesson-title { font-family: 'Playfair Display', serif; font-size: clamp(1.15rem, 2.2vw, 1.7rem); font-weight: 700; line-height: 1.3; }
+  .lesson-btns { display: flex; gap: 0.6rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .btn { padding: 0.55rem 1rem; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 400; cursor: pointer; border: none; transition: all 0.25s; letter-spacing: 0.03em; }
+  .btn-gold { background: var(--gold); color: var(--black); font-weight: 500; }
+  .btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); }
+  .btn-gold.done { background: transparent; border: 1px solid var(--gold-dim); color: var(--gold-dim); }
+  .btn-outline { background: transparent; border: 1px solid rgba(201,168,76,0.2); color: rgba(245,240,232,0.7); }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+  .lesson-desc { font-size: 0.92rem; line-height: 1.8; color: rgba(245,240,232,0.6); margin-bottom: 1.5rem; }
+  .lesson-desc strong { color: var(--white); font-weight: 500; }
+
+  /* TAKEAWAYS */
+  .takeaways { background: rgba(201,168,76,0.04); border: 1px solid rgba(201,168,76,0.1); border-left: 2px solid var(--gold); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+  .takeaways-title { font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.15em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.75rem; }
+  .tw-item { display: flex; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.85rem; line-height: 1.55; color: rgba(245,240,232,0.7); }
+  .tw-item::before { content: '✦'; color: var(--gold); font-size: 0.45rem; margin-top: 0.42rem; flex-shrink: 0; }
+
+  /* REFLEXION */
+  .reflexion { background: var(--gray); border: 1px solid rgba(201,168,76,0.08); padding: 1.25rem 1.5rem; margin-bottom: 2rem; font-family: 'Playfair Display', serif; font-size: 1rem; font-style: italic; line-height: 1.6; color: rgba(245,240,232,0.5); }
+  .reflexion em { color: var(--gold); }
+
+  /* COMPLETION SCREEN */
+  .completion {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 4rem 2rem; text-align: center; flex: 1;
+    background: linear-gradient(180deg, var(--black) 0%, #0d0d07 100%);
+  }
+  .completion.show { display: flex; }
+  .comp-icon { font-size: 3.5rem; margin-bottom: 1.5rem; }
+  .comp-title { font-family: 'Playfair Display', serif; font-size: clamp(1.5rem, 4vw, 2.5rem); font-weight: 900; margin-bottom: 0.5rem; }
+  .comp-title em { color: var(--gold); font-style: italic; }
+  .comp-subtitle { font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 2.5rem; }
+  .comp-list { text-align: left; max-width: 480px; width: 100%; margin-bottom: 2.5rem; }
+  .comp-item { display: flex; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(201,168,76,0.06); font-size: 0.9rem; color: rgba(245,240,232,0.75); }
+  .comp-item-check { color: var(--gold); flex-shrink: 0; }
+  .comp-question { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 0.75rem; }
+  .comp-question em { color: var(--gold); font-style: italic; }
+  .comp-desc { font-size: 0.9rem; color: rgba(245,240,232,0.55); line-height: 1.7; max-width: 480px; margin-bottom: 2rem; }
+  .btn-wa {
+    display: inline-flex; align-items: center; gap: 0.75rem;
+    background: var(--gold); color: var(--black); padding: 1rem 2.5rem;
+    font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.9rem;
+    letter-spacing: 0.05em; text-decoration: none; text-transform: uppercase;
+    transition: all 0.3s; margin-bottom: 3rem;
+  }
+  .btn-wa:hover { background: var(--gold-light); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(201,168,76,0.25); }
+
+  /* FOOTER */
+  footer { padding: 1.5rem 2.5rem; border-top: 1px solid rgba(201,168,76,0.08); font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em; color: var(--text-muted); text-align: center; flex-shrink: 0; }
+  footer span { color: var(--gold-dim); }
+
+  /* OVERLAY (mobile) */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; }
+  .overlay.show { display: block; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    html, body { height: auto; }
+    .layout { height: auto; flex-direction: column; overflow: visible; }
+    .content { overflow: visible; }
+    .sidebar {
+      position: fixed; top: 58px; left: 0; bottom: 0; z-index: 150;
+      transform: translateX(-100%); width: 280px;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .hamburger { display: flex; }
+    .topbar-course { display: none; }
+    .topbar-progress { display: none; }
+    .lesson { padding: 1.25rem; }
+    .lesson-top { flex-direction: column; gap: 1rem; }
+    .lesson-btns { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo">System Vanguard</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-course">El Código del Networker Moderno</div>
+  </div>
+  <div class="topbar-progress">
+    <span class="prog-label">Progreso</span>
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+    <span class="prog-pct" id="progPct">0%</span>
+  </div>
+</header>
+
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-head-eyebrow">Entrenamiento · 10 videos</div>
+      <div class="sidebar-head-title">El <em>Código</em> del<br>Networker Moderno</div>
+    </div>
+    <div class="sidebar-scroll" id="sidebarList"></div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content" id="content">
+
+    <!-- PLAYER -->
+    <div class="player-wrap">
+      <div class="player-ratio">
+        <div class="player-placeholder" id="placeholder" onclick="playNow()">
+          <div class="play-circle"><div class="play-tri"></div></div>
+          <div class="play-hint">Clic para reproducir</div>
+        </div>
+        <iframe id="vframe" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen style="display:none"></iframe>
+      </div>
+    </div>
+
+    <!-- LESSON INFO -->
+    <div class="lesson" id="lessonArea">
+      <div class="lesson-top">
+        <div class="lesson-meta">
+          <div class="lesson-eyebrow" id="lEyebrow"></div>
+          <h1 class="lesson-title" id="lTitle"></h1>
+        </div>
+        <div class="lesson-btns">
+          <button class="btn btn-outline" onclick="prevVid()">← Anterior</button>
+          <button class="btn btn-gold" id="btnComplete" onclick="markDone()">✦ Marcar completo</button>
+          <button class="btn btn-outline" onclick="nextVid()">Siguiente →</button>
+        </div>
+      </div>
+      <p class="lesson-desc" id="lDesc"></p>
+      <div class="takeaways">
+        <div class="takeaways-title">Lo que aprenderás en este video</div>
+        <div id="lTakeaways"></div>
+      </div>
+      <div class="reflexion" id="lReflexion"></div>
+    </div>
+
+    <!-- COMPLETION -->
+    <div class="completion" id="completion">
+      <div class="comp-icon">🎉</div>
+      <h2 class="comp-title">¡Felicidades!</h2>
+      <p class="comp-subtitle">Has completado · El Código del Networker Moderno</p>
+      <div class="comp-list">
+        <div class="comp-item"><span class="comp-item-check">✅</span> Por qué fracasa la mayoría — y por qué no es tu culpa</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Las 3 trampas de la vieja escuela que te estaban frenando</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Cómo piensan los networkers que sí construyen redes reales</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Tu identidad profesional — el activo que nadie te puede quitar</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Cómo atraer prospectos en lugar de perseguirlos</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Cómo posicionarte como referente aunque seas nuevo</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Las herramientas digitales que los TOP usan estratégicamente</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Cómo hablar de tu oportunidad sin generar rechazo</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> El sistema de seguimiento que cierra sin presionar</div>
+        <div class="comp-item"><span class="comp-item-check">✅</span> Tu hoja de ruta clara hacia el networker profesional</div>
+      </div>
+      <h3 class="comp-question">La pregunta ahora es...<br><em>¿Qué harás con este conocimiento?</em></h3>
+      <p class="comp-desc">Si te identificas con esta visión y quieres conocer el siguiente paso para construir una presencia profesional en esta industria, podemos conversar.</p>
+      <a class="btn-wa" href="https://wa.me/5212414076573?text=Hola%20Javier%2C%20acab%C3%A9%20de%20terminar%20El%20C%C3%B3digo%20del%20Networker%20Moderno%20y%20quiero%20conocer%20el%20siguiente%20paso." target="_blank">
+        🚀 Quiero conocer el siguiente paso
+      </a>
+    </div>
+
+    <footer>© Javier Morales · <span>El Código del Networker Moderno</span> · Construyendo networkers profesionales para la era digital.</footer>
+  </main>
+</div>
+
+<script>
+const phases = [
+  { name: "FASE 1 — EL DESPERTAR", videos: [0,1,2] },
+  { name: "FASE 2 — LA TRANSFORMACIÓN", videos: [3,4,5] },
+  { name: "FASE 3 — EL SISTEMA", videos: [6,7,8] },
+  { name: "FASE 4 — EL CAMINO", videos: [9] }
+];
+
+const videos = [
+  {
+    title: "Por qué el 95% fracasa en el Network Marketing — y no es tu culpa",
+    dur: "8 min", vimeo: "1197846771",
+    desc: "El punto de partida de todo. Descubrirás por qué la mayoría de los distribuidores no logran resultados — y por qué <strong>la culpa no es tuya sino del método</strong> que te enseñaron.",
+    takeaways: ["Por qué el 95% de los distribuidores abandonan o no generan resultados significativos","La diferencia entre un modelo que funciona y una metodología rota","Por qué lo que te pasó no fue tu culpa — fue el sistema"],
+    reflexion: "El problema nunca fue tu actitud ni tu esfuerzo. Fue que nadie te enseñó a <em>conducir el auto correctamente</em>."
+  },
+  {
+    title: "La Trampa de la Vieja Escuela — Por qué lo que te enseñaron te está frenando",
+    dur: "7 min", vimeo: "REEMPLAZAR_VIDEO_2",
+    desc: "Las 3 trampas que casi todos los distribuidores siguen repitiendo sin darse cuenta — y cómo están <strong>activamente dañando tu reputación</strong> antes de que puedas construirla.",
+    takeaways: ["La trampa de la lista de los 100 y por qué quema tus relaciones más valiosas","Por qué el contacto en frío sin estrategia comunica desesperación — no oportunidad","El error de vender el producto antes de vender la transformación"],
+    reflexion: "Tu círculo cercano no es tu mercado — <em>es tu activo más valioso</em>. Y los activos valiosos no se queman, se cultivan."
+  },
+  {
+    title: "Cómo Piensan los que Sí Logran Resultados en el Network Marketing",
+    dur: "10 min", vimeo: "REEMPLAZAR_VIDEO_3",
+    desc: "La diferencia real entre los que fracasan y los que construyen redes reales <strong>no está en sus habilidades. Está en su mentalidad.</strong>",
+    takeaways: ["Por qué pensar como líder y no como vendedor lo cambia absolutamente todo","El principio de construir antes de pedir — y cómo aplicarlo hoy mismo","La paciencia estratégica: cómo el largo plazo te da ventaja inmediata"],
+    reflexion: "Los resultados no llegan cuando sabes más. <em>Llegan cuando piensas diferente y actúas diferente.</em>"
+  },
+  {
+    title: "El Primer Pilar: Tu Identidad como Networker Profesional",
+    dur: "8 min", vimeo: "REEMPLAZAR_VIDEO_4",
+    desc: "Sin identidad clara ninguna estrategia funciona. Con identidad clara <strong>casi cualquier estrategia funciona.</strong> Hoy defines quién eres para las personas que quieres ayudar.",
+    takeaways: ["Qué es la identidad profesional y por qué el 95% nunca la desarrolla","El error más costoso: construir tu marca sobre la empresa y no sobre ti","Los 3 elementos de una identidad sólida: historia, posicionamiento y promesa de valor"],
+    reflexion: "Las empresas van y vienen. Los productos cambian. <em>Pero tu identidad te pertenece.</em> Nadie te la puede quitar."
+  },
+  {
+    title: "Atracción vs. Persecución: El Cambio que lo Transforma Todo",
+    dur: "10 min", vimeo: "REEMPLAZAR_VIDEO_5",
+    desc: "Dos distribuidores, mismo negocio, resultados completamente diferentes. <strong>Uno persigue. El otro atrae.</strong> Hoy entiendes exactamente qué los separa.",
+    takeaways: ["Cómo se ve el modo persecución — y por qué trabaja activamente en tu contra","Cómo se ve el modo atracción en la vida real de un distribuidor que sí construye","Por qué la mayoría nunca logra hacer ese cambio — y cómo tú sí puedes"],
+    reflexion: "La desesperación repele. <em>La certeza atrae.</em> Y esa certeza no viene del dinero que tienes — viene de la claridad de hacia dónde vas."
+  },
+  {
+    title: "Cómo Posicionarte como Referente Aunque Seas Nuevo",
+    dur: "12 min", vimeo: "REEMPLAZAR_VIDEO_6",
+    desc: "No necesitas ser el número uno de tu red. No necesitas años de experiencia. <strong>Lo que necesitas es algo completamente diferente — y alcanzable.</strong>",
+    takeaways: ["Qué es realmente un referente — y por qué confundes éxito masivo con posicionamiento","Por qué 'primero resultados, luego posicionamiento' es una trampa que paraliza","Cómo construir credibilidad genuina desde el proceso — no desde la cima"],
+    reflexion: "Tu historia más poderosa no es donde llegaste. <em>Es el puente entre donde estabas — y donde estás yendo.</em>"
+  },
+  {
+    title: "Las Herramientas Digitales que los TOP Usan — y la Mayoría Ignora",
+    dur: "10 min", vimeo: "REEMPLAZAR_VIDEO_7",
+    desc: "Todos tienen las mismas plataformas. La diferencia está en si sabes cómo <strong>conectarlas con un propósito claro — un ecosistema digital que trabaja para ti.</strong>",
+    takeaways: ["Por qué publicar sin sistema es gritar en el desierto — aunque publiques mucho","La diferencia entre tener herramientas y tener un ecosistema funcionando","Cómo se ve la vida de alguien con su sistema digital construido correctamente"],
+    reflexion: "Tener las herramientas sin estrategia es como tener un Ferrari sin saber manejar. <em>La máquina no te lleva a ningún lado si no sabes hacia dónde ir.</em>"
+  },
+  {
+    title: "Cómo Hablar de Tu Oportunidad Sin que Huyan de Ti",
+    dur: "12 min", vimeo: "REEMPLAZAR_VIDEO_8",
+    desc: "La gente no huye de las oportunidades. <strong>Huye de la desesperación.</strong> Hoy aprendes el principio detrás de toda conversación exitosa en el network marketing.",
+    takeaways: ["La razón real por la que la gente huye — y no es lo que la mayoría cree","La diferencia entre una conversación que aleja y una que acerca naturalmente","Qué es la conversación posicionada y por qué lo cambia absolutamente todo"],
+    reflexion: "Cuando alguien te habla y siente que estás ahí para ayudarlo — no para usarlo — <em>baja la guardia. Confía. Escucha.</em>"
+  },
+  {
+    title: "El Sistema de Seguimiento que Cierra Sin Presionar",
+    dur: "10 min", vimeo: "REEMPLAZAR_VIDEO_9",
+    desc: "La mayoría desaparece cuando no recibe un sí inmediato. O presiona hasta incomodar. <strong>Hoy aprendes el sistema que mantiene viva la relación — sin perseguir.</strong>",
+    takeaways: ["Por qué el seguimiento tradicional aleja en lugar de acercar — y qué lo causa","Los 3 tipos de seguimiento: valor, conexión e invitación — cuándo usar cada uno","La regla de oro: nunca preguntes si ya decidió, siempre llega con algo en la mano"],
+    reflexion: "No les vendiste. Les serviste. <em>Y la consecuencia natural de haber servido — es que quieran trabajar contigo.</em>"
+  },
+  {
+    title: "Tu Hoja de Ruta: El Camino del Networker Profesional",
+    dur: "8 min", vimeo: "11978467710",
+    desc: "El video más importante de los diez. <strong>Tu mapa claro de dónde estás, hacia dónde vas — y cuál es el siguiente paso concreto para ti.</strong> Más algo personal.",
+    takeaways: ["El mapa completo de la transformación que viviste en estos 10 videos","Las 4 etapas del camino del networker profesional — y en cuál estás tú hoy","La invitación: qué existe más allá de este entrenamiento y cómo continuar"],
+    reflexion: "El networker profesional no es el que más sabe. Es el que más actúa — <em>con el método correcto — de forma consistente — sin rendirse.</em>"
+  }
+];
+
+let current = 0;
+let completed = JSON.parse(localStorage.getItem('nwm_done') || '[]');
+
+function buildSidebar() {
+  const list = document.getElementById('sidebarList');
+  let html = '';
+  phases.forEach(ph => {
+    html += `<div class="phase-label">${ph.name}</div>`;
+    ph.videos.forEach(i => {
+      const v = videos[i];
+      const isDone = completed.includes(i);
+      const isActive = i === current;
+      const icon = isDone ? '✓' : (isActive ? '▶' : '○');
+      html += `
+        <div class="vi ${isActive?'active':''} ${isDone?'completed':''}" onclick="loadVid(${i})" id="vi${i}">
+          <div class="vi-icon">${icon}</div>
+          <div class="vi-text">
+            <div class="vi-num">Video ${String(i+1).padStart(2,'0')}</div>
+            <div class="vi-name">${v.title}</div>
+          </div>
+          <div class="vi-dur">${v.dur}</div>
+        </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+
+function loadVid(i) {
+  current = i;
+  const v = videos[i];
+
+  // Reset player
+  const fr = document.getElementById('vframe');
+  fr.src = ''; fr.style.display = 'none';
+  document.getElementById('placeholder').style.display = 'flex';
+
+  // Hide completion, show lesson
+  document.getElementById('completion').classList.remove('show');
+  document.getElementById('lessonArea').style.display = 'block';
+
+  // Fill info
+  document.getElementById('lEyebrow').textContent = `Video ${String(i+1).padStart(2,'0')} · ${v.dur}`;
+  document.getElementById('lTitle').textContent = v.title;
+  document.getElementById('lDesc').innerHTML = v.desc;
+  document.getElementById('lReflexion').innerHTML = v.reflexion;
+  document.getElementById('lTakeaways').innerHTML = v.takeaways.map(t => `<div class="tw-item">${t}</div>`).join('');
+
+  const btn = document.getElementById('btnComplete');
+  if (completed.includes(i)) { btn.textContent = '✓ Completado'; btn.classList.add('done'); }
+  else { btn.textContent = '✦ Marcar completo'; btn.classList.remove('done'); }
+
+  buildSidebar();
+  updateProgress();
+
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  document.querySelector('.content').scrollTo(0, 0);
+}
+
+function playNow() {
+  const v = videos[current];
+  if (v.vimeo.startsWith('REEMPLAZAR')) {
+    alert('¡Este video estará disponible muy pronto! Mientras tanto sigue el contenido en Instagram @javiermorales.networker');
+    return;
+  }
+  const fr = document.getElementById('vframe');
+  fr.src = `https://player.vimeo.com/video/${v.vimeo}?autoplay=1&color=c9a84c&title=0&byline=0&portrait=0`;
+  fr.style.display = 'block';
+  document.getElementById('placeholder').style.display = 'none';
+}
+
+function markDone() {
+  if (!completed.includes(current)) {
+    completed.push(current);
+    localStorage.setItem('nwm_done', JSON.stringify(completed));
+  }
+  updateProgress();
+  buildSidebar();
+
+  const btn = document.getElementById('btnComplete');
+  btn.textContent = '✓ Completado'; btn.classList.add('done');
+
+  if (current === videos.length - 1) {
+    setTimeout(showCompletion, 600);
+  } else {
+    setTimeout(() => loadVid(current + 1), 600);
+  }
+}
+
+function showCompletion() {
+  document.getElementById('lessonArea').style.display = 'none';
+  document.getElementById('player-wrap');
+  document.getElementById('completion').classList.add('show');
+  document.querySelector('.content').scrollTo(0, 0);
+}
+
+function updateProgress() {
+  const pct = Math.round((completed.length / videos.length) * 100);
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('progPct').textContent = pct + '%';
+}
+
+function prevVid() { if (current > 0) loadVid(current - 1); }
+function nextVid() { if (current < videos.length - 1) loadVid(current + 1); }
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+buildSidebar();
+loadVid(0);
+</script>
+</body>
+</html>
